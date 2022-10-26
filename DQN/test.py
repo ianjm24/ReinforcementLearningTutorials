@@ -7,7 +7,7 @@ DO NOT revise this file
 
 import argparse
 import numpy as np
-from DQN.environment import Environment
+from environment import Environment
 
 seed = 11037
 

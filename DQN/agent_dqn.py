@@ -13,8 +13,8 @@ from torch import nn, tensor
 import torch.nn.functional as F
 import torch.optim as optim
 
-from DQN.agent import Agent
-from DQN.dqn_model import DQN
+from agent import Agent
+from dqn_model import DQN
 from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import Variable
 
