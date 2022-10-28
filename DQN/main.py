@@ -1,10 +1,8 @@
 import argparse
 from agent_dqn import Agent_DQN
 from environment import Environment
-import numpy as np
 from torch import tensor
 import torch
-import time
 
 seed = 11037
 
@@ -16,7 +14,7 @@ def parse():
     parser.add_argument('--train_dqn', action='store_true', help='whether train DQN')
     parser.add_argument('--test_pg', action='store_true', help='whether test policy gradient')
     parser.add_argument('--test_dqn', action='store_true', help='whether test DQN')
-    parser.add_argument('--video_dir', default=None, help='output video directory')
+    parser.add_argument('--video_dir', default='videos', help='output video directory')
     parser.add_argument('--do_render', action='store_true', help='whether render environment')
 
     parser.add_argument('--batch_size', type=int, default=32, help='batch size for training')
@@ -25,7 +23,7 @@ def parse():
     parser.add_argument('--model_save_interval', type=int, default=500, help='')
     parser.add_argument('--log_path', type=str, default='train_log.out', help='')
     parser.add_argument('--tensorboard_summary_path', type=str, default='tensorboard_summary', help='')
-    parser.add_argument('--model_test_path', type=str, default='/Users/badgod/Downloads/dqn_model_23500.pt', help='')
+    parser.add_argument('--model_test_path', type=str, default='C:/Users/ianjm/OneDrive/Documents/GraduateClasses/2022Fall/ReinforcementLearning/Project/code/ReinforcementLearningTutorials/DQN/trained_models/dqn_model_120500.pt', help='')
     parser.add_argument('--metrics_capture_window', type=int, default=100, help='')
     parser.add_argument('--replay_size', type=int, default=10000, help='')
     parser.add_argument('--start_to_learn', type=int, default=5000, help='')
@@ -47,69 +45,15 @@ def parse():
 
 def run(args):
     if args.train_dqn:
-        env_name = args.env_name or 'BreakoutNoFrameskip-v4'
+        env_name = args.env_name or 'ALE/Breakout-v5'
         env = Environment(env_name, args, atari_wrapper=True)
-        agent = Agent_DQN(env, args)
+        agent = Agent_DQN(env, args, seed)
         agent.train()
 
     if args.test_dqn:
-        env = Environment('BreakoutNoFrameskip-v4', args, atari_wrapper=True, test=True)
-        agent = Agent_DQN(env, args)
-        test(agent, env, total_episodes=100)
-
-
-# def test(agent, env, total_episodes=30):
-#     rewards = []
-#     env.seed(seed)
-#     for i in range(total_episodes):
-#         state = env.reset()
-#         done = False
-#         episode_reward = 0.0
-#         count = 0
-#
-#         # playing one game
-#         while not done:
-#             count += 1
-#             state = tensor(np.rollaxis(state, 2)).unsqueeze(0)
-#             action = agent.make_action(state, test=True)
-#             state, reward, done, info = env.step(action)
-#             episode_reward += reward
-#             if count > 5000:
-#                 break
-#         rewards.append(episode_reward)
-#         print('Episode', i, '. . . Reward', episode_reward, '. . . Avg Reward', np.mean(rewards), '. . . States', count)
-#     print('Run %d episodes' % (total_episodes))
-#     print('Mean:', np.mean(rewards))
-def test(agent, env, total_episodes=30):
-    rewards = []
-    env.seed(seed)
-    start_time = time.time()
-    for i in range(total_episodes):
-        count = 0
-        state = env.reset()
-
-        agent.init_game_setting()
-        done = False
-        episode_reward = 0.0
-
-        # playing one game
-        # frames = [state]
-        while not done:
-            count += 1
-            # env.env.render()
-            state = tensor(np.rollaxis(state, 2)).unsqueeze(0)
-            action = agent.make_action(state, state_count=count, test=True, )
-            state, reward, done, info = env.step(action)
-            episode_reward += reward
-            # frames.append(state)
-        rewards.append(episode_reward)
-        print('Episode', i, '. . . Reward', episode_reward, '. . . Avg Reward', np.mean(rewards), '. . . States',
-              count)
-    print('Run %d episodes' % (total_episodes))
-    print('Mean:', np.mean(rewards))
-    print('rewards', rewards)
-    print('running time', time.time() - start_time)
-
+        env = Environment('ALE/Breakout-v5', args, atari_wrapper=True, test=True)
+        agent = Agent_DQN(env, args, seed)
+        agent.test(total_episodes=100)
 
 if __name__ == '__main__':
     args = parse()

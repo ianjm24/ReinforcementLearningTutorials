@@ -6,7 +6,7 @@ import random
 import numpy as np
 from collections import deque
 import os
-import sys
+import time
 
 import torch
 from torch import nn, tensor
@@ -28,7 +28,7 @@ random.seed(595)
 
 
 class Agent_DQN(Agent):
-    def __init__(self, env, args):
+    def __init__(self, env, args, seed):
         """
         Initialize everything you need here.
         For example: 
@@ -52,6 +52,8 @@ class Agent_DQN(Agent):
         self.device = torch.device("cuda" if self.is_cuda_available else "cpu")
         self.model_test_path = args.model_test_path
         self.step = 0
+        self.video_save_path = args.video_dir
+        self.render = args.do_render
 
         # Environment and network parameters
         self.env = env
@@ -75,6 +77,7 @@ class Agent_DQN(Agent):
         self.last_n_rewards = deque([], self.metrics_capture_window)
         self.start_to_learn = args.start_to_learn
         self.ddqn = args.ddqn
+        self.seed = seed
 
         self.batch_size = args.batch_size
         self.q_network = DQN().to(self.device)
@@ -102,7 +105,7 @@ class Agent_DQN(Agent):
         self.writer = SummaryWriter(args.tensorboard_summary_path)
 
     def create_dirs(self):
-        paths = [self.model_save_path, self.tensorboard_summary_path]
+        paths = [self.model_save_path, self.tensorboard_summary_path, self.video_save_path]
         [os.makedirs(path) for path in paths if not os.path.exists(path)]
 
     def make_action(self, observation, state_count, test=True):
@@ -162,7 +165,7 @@ class Agent_DQN(Agent):
 
         # Sample random minibatch of transition from replay memory
         minibatch = random.sample(self.replay_memory, self.batch_size)
-        state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = map(
+        state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, _ = map(
                 lambda x: Variable(torch.cat(x, 0)), zip(*minibatch))
 
         q_values = self.q_network(state_batch).gather(1, action_batch.unsqueeze(1)).squeeze(1)
@@ -194,7 +197,7 @@ class Agent_DQN(Agent):
         Implement your training algorithm here
         """
         for episode in range(self.episodes):
-            state = self.env.reset()
+            state, _ = self.env.reset()
             state = torch.reshape(tensor(state, dtype=torch.float32), [1, 84, 84, 4]).permute(0, 3, 1, 2).to(
                     self.device)
             done = False
@@ -222,13 +225,13 @@ class Agent_DQN(Agent):
                         self.mode = 'Exploit'
 
                 action, q = self.make_action(state, 0, test=False)
-                next_state, reward, done, _ = self.env.step(action)
+                next_state, reward, done, truncated, _ = self.env.step(action)
 
                 next_state = torch.reshape(tensor(next_state, dtype=torch.float32), [1, 84, 84, 4]).permute(0, 3, 1,
                                                                                                             2).to(
                         self.device)
                 self.push((state, torch.tensor([int(action)]), torch.tensor([reward], device=self.device), next_state,
-                           torch.tensor([done], dtype=torch.float32)))
+                           torch.tensor([done], dtype=torch.float32), torch.tensor([truncated], dtype=torch.float32)))
                 episode_reward.append(reward)
                 self.step += 1
                 state = next_state
@@ -238,7 +241,7 @@ class Agent_DQN(Agent):
                     loss = self.optimize_network()
                     episode_loss.append(loss)
 
-                if done:
+                if done or truncated:
                     print('Episode:', episode, ' | Steps:', self.step, ' | Eps: ', self.epsilon, ' | Reward: ',
                           sum(episode_reward),
                           ' | Avg Reward: ', np.mean(self.last_n_rewards), ' | Loss: ',
@@ -247,7 +250,34 @@ class Agent_DQN(Agent):
                           sum(episode_reward),
                           ' | Avg Reward: ', np.mean(self.last_n_rewards), ' | Loss: ',
                           np.mean(episode_loss), ' | Mode: ', self.mode, file=self.log_file)
-                    self.log_summary(episode, episode_loss, episode_reward)
+                    #self.log_summary(episode, episode_loss, episode_reward)
                     self.last_n_rewards.append(sum(episode_reward))
                     episode_reward.clear()
                     episode_loss.clear()
+
+    def test(self, total_episodes=30):
+        rewards = []
+        state, _ = self.env.reset(seed=self.seed)
+        start_time = time.time()
+        for i in range(total_episodes):
+            count = 0
+            state, _ = self.env.reset()
+
+            self.init_game_setting()
+            done = False
+            truncated = False
+            episode_reward = 0.0
+
+            while not (done or truncated):
+                count += 1
+                state = tensor(np.rollaxis(state, 2)).unsqueeze(0)
+                action = self.make_action(state, state_count=count, test=True)
+                state, reward, done, truncated, info = self.env.step(action)
+                episode_reward += reward
+            rewards.append(episode_reward)
+            print('Episode', i, '. . . Reward', episode_reward, '. . . Avg Reward', np.mean(rewards), '. . . States',
+                count)
+        print('Run %d episodes' % (total_episodes))
+        print('Mean:', np.mean(rewards))
+        print('rewards', rewards)
+        print('running time', time.time() - start_time)
