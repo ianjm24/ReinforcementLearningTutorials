@@ -54,6 +54,10 @@ class Agent_DQN(Agent):
         self.step = 0
         self.video_save_path = args.video_dir
         self.render = args.do_render
+        self.global_reward_sum = 0
+        self.global_loss_sum = 0
+        self.global_avg_reward = 0
+        self.global_avg_loss = 0
 
         # Environment and network parameters
         self.env = env
@@ -98,6 +102,8 @@ class Agent_DQN(Agent):
             self.q_network.load_state_dict(torch.load(self.model_test_path, map_location=self.device))
 
         self.log_file = open(self.model_save_path + '/' + self.run_name + '.log', 'w') if not args.test_dqn else None
+        self.reward_file = open(self.model_save_path + '/' + self.run_name + '_rewards.csv', 'w') if not args.test_dqn else None
+        self.loss_file = open(self.model_save_path + '/' + self.run_name + '_loss.csv', 'w') if not args.test_dqn else None
 
         # Set target_network weight
         self.target_network.load_state_dict(self.q_network.state_dict())
@@ -189,18 +195,23 @@ class Agent_DQN(Agent):
     def log_summary(self, global_step, episode_loss, episode_reward):
         self.writer.add_scalar('Train/Episode Reward', sum(episode_reward), global_step)
         self.writer.add_scalar('Train/Average Loss', np.mean(episode_loss), global_step)
-        self.writer.add_scalar('Train/Average reward(100)', np.mean(self.last_n_rewards), global_step)
+        self.writer.add_scalar(f'Train/Average reward({self.metrics_capture_window})', np.mean(self.last_n_rewards), global_step)
         self.writer.flush()
 
     def train(self):
         """
         Implement your training algorithm here
         """
+
+        print(f"Episode,Avg Reward", file=self.reward_file)
+        print(f"Episode,Avg Loss", file=self.loss_file)
+
         for episode in range(self.episodes):
             state, _ = self.env.reset()
             state = torch.reshape(tensor(state, dtype=torch.float32), [1, 84, 84, 4]).permute(0, 3, 1, 2).to(
                     self.device)
             done = False
+            truncated = False
             episode_reward = []
             episode_loss = []
 
@@ -208,6 +219,9 @@ class Agent_DQN(Agent):
             if episode % self.model_save_interval == 0:
                 save_path = self.model_save_path + '/' + self.run_name + '_' + str(episode) + '.pt'
                 torch.save(self.q_network.state_dict(), save_path)
+                if self.step >= self.start_to_learn:
+                    print(f"{episode},{self.global_avg_reward}", file=self.reward_file)
+                    print(f"{episode},{self.global_avg_loss}", file=self.loss_file)
                 print('Successfully saved: ' + save_path)
 
             while not done:
@@ -252,6 +266,10 @@ class Agent_DQN(Agent):
                           np.mean(episode_loss), ' | Mode: ', self.mode, file=self.log_file)
                     #self.log_summary(episode, episode_loss, episode_reward)
                     self.last_n_rewards.append(sum(episode_reward))
+                    self.global_reward_sum += sum(episode_reward)
+                    self.global_loss_sum += sum(episode_loss)
+                    self.global_avg_reward = self.global_reward_sum / (episode + 1)
+                    self.global_avg_loss = self.global_loss_sum / (episode + 1)
                     episode_reward.clear()
                     episode_loss.clear()
 

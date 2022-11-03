@@ -190,7 +190,7 @@ class LazyFrames(object):
         return out
 
 def make_atari(env_id, doRender):
-    env = gym.make(env_id, render_mode="human")
+    env = gym.make(env_id, render_mode="human") if doRender else gym.make(env_id)
     #assert 'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max=30)
     env = MaxAndSkipEnv(env, skip=4)
@@ -210,8 +210,6 @@ def wrap_deepmind(env, doRender, episode_life=True, clip_rewards=True, frame_sta
         env = ClipRewardEnv(env)
     if frame_stack:
         env = FrameStack(env, 4)
-    if doRender:
-        env = gym.wrappers.RecordVideo(env, video_folder="videos", episode_trigger=lambda x: True)
     return env
 
 def make_wrap_atari(env_id='ALE/Breakout-v5', clip_rewards=True, doRender=False):
