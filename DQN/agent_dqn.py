@@ -54,10 +54,9 @@ class Agent_DQN(Agent):
         self.step = 0
         self.video_save_path = args.video_dir
         self.render = args.do_render
-        self.global_reward_sum = 0
-        self.global_loss_sum = 0
-        self.global_avg_reward = 0
-        self.global_avg_loss = 0
+        self.most_recent_episode_reward = 0
+        self.most_recent_episode_avg_loss = 0
+        self.step_neg_reward = -0.01
 
         # Environment and network parameters
         self.env = env
@@ -203,7 +202,7 @@ class Agent_DQN(Agent):
         Implement your training algorithm here
         """
 
-        print(f"Episode,Avg Reward", file=self.reward_file)
+        print(f"Episode,Reward", file=self.reward_file)
         print(f"Episode,Avg Loss", file=self.loss_file)
 
         for episode in range(self.episodes):
@@ -214,14 +213,15 @@ class Agent_DQN(Agent):
             truncated = False
             episode_reward = []
             episode_loss = []
+            episode_steps = 0
 
             # save network
             if episode % self.model_save_interval == 0:
                 save_path = self.model_save_path + '/' + self.run_name + '_' + str(episode) + '.pt'
                 torch.save(self.q_network.state_dict(), save_path)
                 if self.step >= self.start_to_learn:
-                    print(f"{episode},{self.global_avg_reward}", file=self.reward_file)
-                    print(f"{episode},{self.global_avg_loss}", file=self.loss_file)
+                    print(f"{episode},{self.most_recent_episode_reward}", file=self.reward_file)
+                    print(f"{episode},{self.most_recent_episode_avg_loss}", file=self.loss_file)
                 print('Successfully saved: ' + save_path)
 
             while not done:
@@ -248,6 +248,7 @@ class Agent_DQN(Agent):
                            torch.tensor([done], dtype=torch.float32), torch.tensor([truncated], dtype=torch.float32)))
                 episode_reward.append(reward)
                 self.step += 1
+                episode_steps += 1
                 state = next_state
 
                 # train network
@@ -256,6 +257,7 @@ class Agent_DQN(Agent):
                     episode_loss.append(loss)
 
                 if done or truncated:
+                    episode_reward.append(episode_steps * self.step_neg_reward)
                     print('Episode:', episode, ' | Steps:', self.step, ' | Eps: ', self.epsilon, ' | Reward: ',
                           sum(episode_reward),
                           ' | Avg Reward: ', np.mean(self.last_n_rewards), ' | Loss: ',
@@ -266,10 +268,8 @@ class Agent_DQN(Agent):
                           np.mean(episode_loss), ' | Mode: ', self.mode, file=self.log_file)
                     #self.log_summary(episode, episode_loss, episode_reward)
                     self.last_n_rewards.append(sum(episode_reward))
-                    self.global_reward_sum += sum(episode_reward)
-                    self.global_loss_sum += sum(episode_loss)
-                    self.global_avg_reward = self.global_reward_sum / (episode + 1)
-                    self.global_avg_loss = self.global_loss_sum / (episode + 1)
+                    self.most_recent_episode_reward = sum(episode_reward)
+                    self.most_recent_episode_avg_loss = np.mean(episode_loss)
                     episode_reward.clear()
                     episode_loss.clear()
 

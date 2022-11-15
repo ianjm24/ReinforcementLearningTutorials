@@ -56,6 +56,25 @@ class FireResetEnv(gym.Wrapper):
             self.env.reset(**kwargs)
         return obs, info
 
+class LostLifeNegRewardEnv(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.lives = 0
+
+    def step(self, action):
+        obs, reward, done, truncated, info = self.env.step(action)
+        lives = self.env.unwrapped.ale.lives()
+        if lives < self.lives:
+            reward -= 5
+        self.lives = lives
+        return obs, reward, done, truncated, info
+
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        self.lives = self.env.unwrapped.ale.lives()
+        self.lost_lives = 0
+        return obs, info
+
 class EpisodicLifeEnv(gym.Wrapper):
     def __init__(self, env):
         """Make end-of-life == end-of-episode, but only reset on true game over.
@@ -196,11 +215,13 @@ def make_atari(env_id, doRender):
     env = MaxAndSkipEnv(env, skip=4)
     return env
 
-def wrap_deepmind(env, doRender, episode_life=True, clip_rewards=True, frame_stack=False, scale=False):
+def wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False, scale=False):
     """Configure environment for DeepMind-style Atari.
     """
     if episode_life:
         env = EpisodicLifeEnv(env)
+    else:
+        env = LostLifeNegRewardEnv(env)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
     env = WarpFrame(env)
@@ -212,7 +233,7 @@ def wrap_deepmind(env, doRender, episode_life=True, clip_rewards=True, frame_sta
         env = FrameStack(env, 4)
     return env
 
-def make_wrap_atari(env_id='ALE/Breakout-v5', clip_rewards=True, doRender=False):
+def make_wrap_atari(env_id='ALE/Breakout-v5', clip_rewards=True, doRender=False, episode_life=True):
     #env = gym.make(env_id)
     env = make_atari(env_id, doRender)
-    return wrap_deepmind(env, doRender, clip_rewards=clip_rewards, frame_stack=True, scale=False)
+    return wrap_deepmind(env, clip_rewards=clip_rewards, frame_stack=True, scale=False, episode_life=episode_life)

@@ -13,7 +13,7 @@ class Environment(object):
     def __init__(self, env_name, args, atari_wrapper=False, test=False):
         if atari_wrapper:
             clip_rewards = not test
-            self.env = make_wrap_atari(env_name, clip_rewards, args.do_render)
+            self.env = make_wrap_atari(env_name, clip_rewards, args.do_render, episode_life=False)
         else:
             self.env = gym.wrappers.RecordVideo(gym.make(env_name, render_mode="rgb_array"), video_folder="videos", episode_trigger=lambda x: True)
 
