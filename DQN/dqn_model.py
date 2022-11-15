@@ -35,7 +35,8 @@ class DQN(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
-        x = x.view(-1, 7 * 7 * 64)
+        #x = x.view(-1, 7 * 7 * 64)
+        x = x.reshape(-1, 7 * 7 * 64)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x

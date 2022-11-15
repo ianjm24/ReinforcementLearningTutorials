@@ -102,3 +102,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+tensorboard_summary/
+trained_models/
+launch.json

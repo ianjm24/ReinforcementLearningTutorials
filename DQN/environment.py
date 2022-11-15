@@ -5,27 +5,22 @@ DO NOT revise this file
 
 """
 import gym
+import ale_py
 import numpy as np
-from DQN.atari_wrapper import make_wrap_atari
+from atari_wrapper import make_wrap_atari
 
 class Environment(object):
     def __init__(self, env_name, args, atari_wrapper=False, test=False):
         if atari_wrapper:
             clip_rewards = not test
-            self.env = make_wrap_atari(env_name, clip_rewards)
+            self.env = make_wrap_atari(env_name, clip_rewards, args.do_render)
         else:
-            self.env = gym.make(env_name)
+            self.env = gym.wrappers.RecordVideo(gym.make(env_name, render_mode="rgb_array"), video_folder="videos", episode_trigger=lambda x: True)
 
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
-        
-    def seed(self, seed):
-        '''
-        Control the randomness of the environment
-        '''
-        self.env.seed(seed)
 
-    def reset(self):
+    def reset(self, seed=None):
         '''
         When running dqn:
             observation: np.array
@@ -35,9 +30,9 @@ class Environment(object):
             observation: np.array
                 current RGB screen of game, shape: (210, 160, 3)
         '''
-        observation = self.env.reset()
+        observation, info = self.env.reset(seed=seed)
 
-        return np.array(observation)
+        return np.array(observation), info
 
 
     def step(self,action):
@@ -62,9 +57,9 @@ class Environment(object):
         if not self.env.action_space.contains(action):
             raise ValueError('Ivalid action!!')
 
-        observation, reward, done, info = self.env.step(action)
+        observation, reward, done, truncated, info = self.env.step(action)
 
-        return np.array(observation), reward, done, info
+        return np.array(observation), reward, done, truncated, info
 
 
     def get_action_space(self):
