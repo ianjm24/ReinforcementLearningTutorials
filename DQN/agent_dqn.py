@@ -224,7 +224,7 @@ class Agent_DQN(Agent):
                     print(f"{episode},{self.most_recent_episode_avg_loss}", file=self.loss_file)
                 print('Successfully saved: ' + save_path)
 
-            while not done:
+            while not (done or truncated):
 
                 # update target network
                 if self.step % self.network_update_interval == 0:
