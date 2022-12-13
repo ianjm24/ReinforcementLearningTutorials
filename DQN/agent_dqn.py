@@ -103,6 +103,7 @@ class Agent_DQN(Agent):
         self.log_file = open(self.model_save_path + '/' + self.run_name + '.log', 'w') if not args.test_dqn else None
         self.reward_file = open(self.model_save_path + '/' + self.run_name + '_rewards.csv', 'w') if not args.test_dqn else None
         self.loss_file = open(self.model_save_path + '/' + self.run_name + '_loss.csv', 'w') if not args.test_dqn else None
+        self.test_log_file = open('test_' + self.run_name + '.log', 'w') if args.test_dqn else None
 
         # Set target_network weight
         self.target_network.load_state_dict(self.q_network.state_dict())
@@ -292,9 +293,10 @@ class Agent_DQN(Agent):
                 action = self.make_action(state, state_count=count, test=True)
                 state, reward, done, truncated, info = self.env.step(action)
                 episode_reward += reward
+            episode_reward += (count * self.step_neg_reward)
             rewards.append(episode_reward)
-            print('Episode', i, '. . . Reward', episode_reward, '. . . Avg Reward', np.mean(rewards), '. . . States',
-                count)
+            print('Episode:', i, ' | Reward:', episode_reward, ' | Avg Reward:', np.mean(rewards), ' | Steps:', count)
+            print('Episode:', i, ' | Reward:', episode_reward, ' | Avg Reward:', np.mean(rewards), ' | Steps:', count, file=self.test_log_file)
         print('Run %d episodes' % (total_episodes))
         print('Mean:', np.mean(rewards))
         print('rewards', rewards)

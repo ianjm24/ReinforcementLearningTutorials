@@ -23,7 +23,7 @@ def parse():
     parser.add_argument('--model_save_interval', type=int, default=500, help='')
     parser.add_argument('--log_path', type=str, default='train_log.out', help='')
     parser.add_argument('--tensorboard_summary_path', type=str, default='tensorboard_summary', help='')
-    parser.add_argument('--model_test_path', type=str, default='C:/Users/ianjm/OneDrive/Documents/GraduateClasses/2022Fall/ReinforcementLearning/Project/code/ReinforcementLearningTutorials/DQN/trained_models/dqn_model_120500.pt', help='')
+    parser.add_argument('--model_test_path', type=str, default='', help='')
     parser.add_argument('--metrics_capture_window', type=int, default=100, help='')
     parser.add_argument('--replay_size', type=int, default=10000, help='')
     parser.add_argument('--start_to_learn', type=int, default=5000, help='')
@@ -53,7 +53,7 @@ def run(args):
     if args.test_dqn:
         env = Environment('ALE/Breakout-v5', args, atari_wrapper=True, test=True)
         agent = Agent_DQN(env, args, seed)
-        agent.test(total_episodes=100)
+        agent.test(total_episodes=1000)
 
 if __name__ == '__main__':
     args = parse()
